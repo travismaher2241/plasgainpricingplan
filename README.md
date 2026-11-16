@@ -9,7 +9,7 @@ Standalone, local-first Next.js application for one-time customer pricing review
 3. Run `npm run dev` and open `http://localhost:3000`.
 4. Sign in with `APP_PASSWORD`, upload `UCS_Customer_Price_List_Final.xlsx`, review validation, and start extraction.
 5. Leave the browser open while batches run. If interrupted, use **Resume extraction**. The previous complete dataset stays active until a new extraction finishes.
-6. Review historical prices, edit each customer/item discount, approve and lock individual values, then download the XLSX workbook from **Export**.
+6. Review the latest purchase price for each customer and UCS item, edit each customer/item discount, approve and lock individual values, then download the XLSX workbook from **Export**.
 
 Environment variables:
 
@@ -42,7 +42,7 @@ All ERP calls are in `lib/ostendo.ts`. That module hard-codes the three allowed 
 - A qualifying price is `LOCALEXTENDEDNETTPRICE / INVOICEQTY`. The latest eligible date, then invoice number, then line number determines the last price. Distinct invoice numbers determine frequency. No sale in the window remains explicitly blank.
 - Master price is UCS price × 1.35. Historical implied discount is `(1 − last price / master price) × 100`. Proposed selling price is `master price × (1 − entered discount / 100)`. An implied discount is never approved automatically. Negative implied discounts are retained.
 
-The application has not been connected to live Ostendo in this workspace, so field meanings and price calculations have not yet been checked against selected original invoices. Before approving the final pricing structure, reconcile several known invoices, including a freight invoice, a credit, and an invoice with a discount, against the Ostendo screen. Confirm that all expected customer and invoice counts are present. The **Exceptions & Validation** sheet records excluded or questionable records.
+The application has not been connected to live Ostendo in this workspace, so field meanings and price calculations have not yet been checked against selected original invoices. Before approving the final pricing structure, reconcile several known invoices, including a freight invoice, a credit, and an invoice with a discount, against the Ostendo screen. Confirm that all expected customer and invoice counts are present. The **Exceptions & validation** section in the app records excluded or questionable records.
 
 ## Hosting and data retention
 
@@ -66,3 +66,9 @@ The XLSX export is for manual review and a separately authorised pricing process
 
 
 Firestore integration tests: start the Firebase Firestore emulator, then run `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npx tsx --test tests/firestore.test.ts`. They use the isolated `demo-plasgain-storage` project and delete their test state. Without an emulator, this suite is explicitly skipped.
+
+## Latest purchase prices and exports
+
+The app searches the existing rolling 12-month window and displays one latest eligible purchase price for each customer and UCS workbook item. Older invoices, previous prices, period quantities, invoice counts and revenue are omitted from pricing views and downloads. An item with no eligible purchase in that window stays listed with a blank price and an explicit status; prices older than the search window are not included.
+
+Excel exports contain one **Latest Purchase Prices** sheet: customer name/code, Plasgain and UCS item codes, description, unit, most recent purchase date/status, and net unit price in AUD. Download all customers or only the selected customer. Proposed discounts and approvals remain available in the app's customer pricing review.
