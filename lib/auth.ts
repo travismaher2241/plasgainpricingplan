@@ -1,0 +1,6 @@
+import crypto from 'node:crypto';import {NextRequest,NextResponse} from 'next/server';
+const name='pricing_session';
+export function authorized(req:NextRequest){const secret=process.env.APP_PASSWORD;if(!secret||secret.length<16)return false;const token=req.cookies.get(name)?.value;if(!token)return false;const [ts,sig]=token.split('.');if(!ts||!sig||!/^\d+$/.test(ts)||Date.now()-Number(ts)>12*3600e3||Number(ts)>Date.now()+60000)return false;const expected=crypto.createHmac('sha256',secret).update(ts).digest('hex');return sig.length===expected.length&&crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(expected))}
+export function unauthorized(){return NextResponse.json({error:'Sign in required'},{status:401})}
+export function login(req:NextRequest,password:string){const secret=process.env.APP_PASSWORD||'';if(secret.length<16||password.length!==secret.length||!crypto.timingSafeEqual(Buffer.from(password),Buffer.from(secret)))return NextResponse.json({error:'Invalid password or APP_PASSWORD configuration'},{status:401});const ts=String(Date.now());const sig=crypto.createHmac('sha256',secret).update(ts).digest('hex');const res=NextResponse.json({ok:true});res.cookies.set(name,`${ts}.${sig}`,{httpOnly:true,sameSite:'strict',secure:req.nextUrl.protocol==='https:',path:'/',maxAge:12*3600});return res}
+
