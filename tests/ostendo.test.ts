@@ -11,6 +11,15 @@ test('invoice header validation distinguishes response defects without skipping 
   const respond=(rows:unknown)=>{globalThis.fetch=async()=>new Response(JSON.stringify(rows),{status:200})};
   try {
     respond([]);assert.deepEqual(await fetchDay(date),[]);
+    respond([{INVOICENUMBER:null,INVOICEDATE:null,INVOICESTATUS:''}]);assert.deepEqual(await fetchDay(date),[]);
+    respond({INVOICENUMBER:[],INVOICEDATE:[]});assert.deepEqual(await fetchDay(date),[]);
+    respond({INVOICENUMBER:['TEST1'],INVOICEDATE:['2025-11-16']});
+    assert.deepEqual(await fetchDay(date),[{INVOICENUMBER:'TEST1',INVOICEDATE:'2025-11-16'}]);
+    respond({INVOICENUMBER:['TEST1'],INVOICEDATE:[]});await assert.rejects(fetchDay(date),/unequal column lengths/);
+    respond([{INVOICENUMBER:null,INVOICEDATE:date}]);await assert.rejects(fetchDay(date),/missing INVOICENUMBER/);
+    respond([{INVOICENUMBER:null,INVOICEDATE:null,LOCALINVOICENETTAMOUNT:0}]);await assert.rejects(fetchDay(date),/missing INVOICENUMBER/);
+    respond({});await assert.rejects(fetchDay(date),/missing INVOICENUMBER/);
+
     const valid={INVOICENUMBER:'TEST1',INVOICEDATE:'16/11/2025'};
     respond([valid]);assert.deepEqual(await fetchDay(date),[valid]);
     respond([{CUSTOMER:'private-customer',INVOICEDATE:date}]);
