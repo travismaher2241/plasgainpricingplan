@@ -71,4 +71,10 @@ Firestore integration tests: start the Firebase Firestore emulator, then run `FI
 
 The app searches the existing rolling 12-month window and displays one latest eligible purchase price for each customer and UCS workbook item. Older invoices, previous prices, period quantities, invoice counts and revenue are omitted from pricing views and downloads. An item with no eligible purchase in that window stays listed with a blank price and an explicit status; prices older than the search window are not included.
 
-Excel exports contain one **Latest Purchase Prices** sheet: customer name/code, Plasgain and UCS item codes, description, unit, most recent purchase date/status, and net unit price in AUD. Download all customers or only the selected customer. Proposed discounts and approvals remain available in the app's customer pricing review.
+Excel exports contain a **Latest Purchase Prices** sheet with customer/item latest prices, reference prices and benchmark comparisons, plus an **Item Price Benchmarks** sheet summarizing every UCS workbook product. Download all customers or only the selected customer. Proposed discounts and approvals remain available in the app's customer pricing review.
+
+## Most common prices and discounts
+
+Each customer contributes one latest purchase price per item, rounded to AUD cents. **Underground Cable Services** is excluded from benchmark counts (case, whitespace, punctuation and an optional Pty Ltd suffix are normalized), but remains visible in customer comparisons. Customers without a purchase in the search window do not vote. The price with the largest customer count is the most common price; this need not exceed 50% of customers. All equally frequent prices are shown as ties. If every price is unique, every price is tied; there is no single benchmark.
+
+Product Pricing Analysis lists every UCS workbook item, most common prices, customer counts and shares, and implied discounts against the fixed **UCS workbook price × 1.35** reference. Selecting an item shows its price distribution and customers paying above/below the common price. Tied benchmarks retain a difference against every tied price. No proposed discount or approval is applied automatically. Selected-customer exports retain the benchmark calculated from all eligible customers.

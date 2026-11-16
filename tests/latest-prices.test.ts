@@ -16,12 +16,12 @@ const snapshot:Snapshot={
 
 test('export has exactly one latest-price row per customer/UCS item, including unsold items',async()=>{
  const wb=new ExcelJS.Workbook();await wb.xlsx.load(await workbook(snapshot,{}) as any);
- assert.equal(wb.worksheets.length,1);
+ assert.equal(wb.worksheets.length,2);
  const ws=wb.getWorksheet('Latest Purchase Prices')!;
- assert.equal(ws.rowCount,5);assert.equal(ws.columnCount,8);
+ assert.equal(ws.rowCount,5);assert.equal(ws.columnCount,12);
  const headers=ws.getRow(1).values as string[];
  assert.ok(headers.includes('Last Net Unit Price (AUD)'));
- assert.doesNotMatch(headers.join(','),/Previous|Revenue|Quantity|Invoice|Discount/);
+ assert.doesNotMatch(headers.join(','),/Previous|Revenue|Quantity|Invoice/);
  const rows=[2,3,4,5].map(n=>ws.getRow(n));
  assert.deepEqual(rows.map(r=>[r.getCell(2).value,r.getCell(3).value]),[['C1','001'],['C1','002'],['C2','001'],['C2','002']]);
  assert.equal(rows[0].getCell(7).value,'01/10/2026');
@@ -36,5 +36,6 @@ test('selected-customer export contains only that customer and every UCS item',a
  const wb=new ExcelJS.Workbook();await wb.xlsx.load(await workbook(snapshot,{},'C2') as any);
  const ws=wb.worksheets[0];assert.equal(ws.rowCount,3);
  for(const n of [2,3])assert.equal(ws.getRow(n).getCell(2).value,'C2');
+ assert.equal(ws.getRow(2).getCell(10).value,'120.00'); // Global benchmark includes C1, even in C2's export.
  assert.equal(ws.getRow(2).getCell(3).value,'001');assert.equal(ws.getRow(3).getCell(3).value,'002');
 });
