@@ -14,7 +14,24 @@ rows=Array.from({length:count},(_,i)=>Object.fromEntries(columns.map(([k,v])=>[k
 if(!Array.isArray(rows))rows=[rows];if(!(rows as unknown[]).every(r=>r&&typeof r==='object'&&!Array.isArray(r)))throw Error('Invalid Ostendo row response');return rows as RecordRow[]}
 export const str=(r:RecordRow,k:string)=>String(r[k]??'').trim();
 export const num=(r:RecordRow,k:string)=>{const v=r[k];if(v===null||v===undefined||v==='')return null;const n=Number(String(v).replace(/,/g,''));return Number.isFinite(n)?n:null};
-export function isoDate(raw:unknown){const s=String(raw??'').trim();const m=s.match(/^(\d{4})-(\d\d)-(\d\d)/);if(m)return `${m[1]}-${m[2]}-${m[3]}`;const d=s.match(/^(\d\d?)\/(\d\d?)\/(\d{4})/);if(d)return `${d[3]}-${d[2].padStart(2,'0')}-${d[1].padStart(2,'0')}`;return ''}
+function calendarDate(year:string,month:string,day:string){
+const iso=`${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`;
+const parsed=new Date(iso+'T12:00:00Z');
+return Number.isFinite(parsed.getTime())&&parsed.toISOString().slice(0,10)===iso?iso:'';
+}
+export function isoDate(raw:unknown,expectedDay?:string){
+const s=String(raw??'').trim();
+const iso=s.match(/^(\d{4})-(\d\d)-(\d\d)(?=$|[T ])/);
+if(iso)return calendarDate(iso[1],iso[2],iso[3]);
+const slash=s.match(/^(\d\d?)\/(\d\d?)\/(\d{4})(?=$|[T ])/);
+if(!slash)return '';
+const dayFirst=calendarDate(slash[3],slash[2],slash[1]);
+const monthFirst=calendarDate(slash[3],slash[1],slash[2]);
+// Daily queries provide context for ambiguous slash dates. The normalized ISO
+// date is persisted on the header so subsequent batches do not reinterpret it.
+if(expectedDay&&(dayFirst===expectedDay||monthFirst===expectedDay))return expectedDay;
+return dayFirst||monthFirst;
+}
 export function addDay(day:string){const d=new Date(day+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10)}
 export function windowDates(now=new Date()){const end=now.toLocaleDateString('en-CA',{timeZone:'Australia/Sydney'});const y=Number(end.slice(0,4)),m=Number(end.slice(5,7)),d=Number(end.slice(8,10));const startDate=new Date(Date.UTC(y,m-13,d));return {start:startDate.toISOString().slice(0,10),end}}
 export async function fetchDay(date:string){let rows:RecordRow[];try{rows=await query('SALESINVOICEHEADER',`INVOICEDATE='${date}'`)}catch{const [y,m,d]=date.split('-');rows=await query('SALESINVOICEHEADER',`INVOICEDATE='${Number(m)}/${Number(d)}/${y}'`)}// Accept only a single completely blank placeholder, never a partial invoice.
@@ -27,10 +44,10 @@ if(!invoice){
 const fields=Object.keys(r).slice(0,12).map(k=>k.replace(/[^A-Za-z0-9_]/g,'').slice(0,60)).join(', ')||'(none)';
 throw Error(`${location}: missing INVOICENUMBER. Returned fields: ${fields}`);
 }
-const actualDate=isoDate(r.INVOICEDATE);
-if(!actualDate)throw Error(`${location}: INVOICEDATE is missing or has an unsupported format; expected YYYY-MM-DD or DD/MM/YYYY`);
+const actualDate=isoDate(r.INVOICEDATE,date);
+if(!actualDate)throw Error(`${location}: INVOICEDATE is missing or has an unsupported format; expected YYYY-MM-DD, DD/MM/YYYY or MM/DD/YYYY`);
 if(actualDate!==date)throw Error(`${location}: returned invoice date ${actualDate} does not match requested date ${date}; the server date filter needs verification`);
 if(seen.has(invoice))throw Error(`${location}: duplicate INVOICENUMBER in this day's response; extraction paused to avoid double counting`);
-seen.add(invoice)}return rows}
+r.INVOICEDATE=actualDate;seen.add(invoice)}return rows}
 export async function fetchLines(invoice:string){if(!/^[A-Za-z0-9][A-Za-z0-9_./-]{0,39}$/.test(invoice))throw Error('Unsafe invoice number');const rows=await query('SALESINVOICELINES',`INVOICENUMBER='${invoice}'`);for(const r of rows)if(str(r,'INVOICENUMBER')!==invoice)throw Error(`Unexpected invoice line for ${invoice}`);return rows}
 
