@@ -19,6 +19,7 @@ Environment variables:
 | `OSTENDO_API_URL` | `https://plasgain.southeastit.com.au:8843` (the verified host and port are enforced in code). |
 | `OSTENDO_API_KEY` | Server-only Ostendo key. Never put it in browser code or source control. |
 | `DATA_DIR` | Directory for the persistent JSON snapshot and reviewed discounts; defaults to `./data`. Back it up. |
+| `DATABASE_URL` | Serverless Postgres connection string for Vercel. Required on Vercel; optional locally. |
 
 Run `npm test` for workbook parsing, dates, calculations and XLSX creation; run `npm run build` for a production build. Production serving uses `npm start` after the build.
 
@@ -43,7 +44,8 @@ The application has not been connected to live Ostendo in this workspace, so fie
 
 ## Hosting and data retention
 
-Run this as a single-instance application with a private, persistent `DATA_DIR` and restricted network access. `data/` is excluded from Git. The app can build on Vercel, but Vercel's ephemeral function filesystem is **not suitable for its current JSON persistence**. A Vercel deployment requires replacing `lib/store.ts` with a durable, access-controlled store and coordinating concurrent writes before live commercial data is imported. No external service has been provisioned for this one-time review.
+For local development without `DATABASE_URL`, the app uses `DATA_DIR` and runs as a single instance. On Vercel, it requires a serverless Postgres `DATABASE_URL`; it will not fall back to Vercel's ephemeral filesystem. The app creates its `pricing_state` table on first access and uses a revision check to reject overlapping updates instead of silently losing a discount or extraction step. A Neon Postgres store connected through Vercel Marketplace is suitable. Keep the database private and provision the same `DATABASE_URL` for each deployment environment that should share data. Configure `APP_PASSWORD` and the read-only Ostendo settings in Vercel Project Settings → Environment Variables, then redeploy. The repository alone contains no credentials or commercial data.
 
 The XLSX export is for manual review and a separately authorised pricing process. It is not an Ostendo import template and the app cannot send prices to Ostendo.
+
 
