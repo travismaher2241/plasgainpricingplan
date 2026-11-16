@@ -19,7 +19,9 @@ Environment variables:
 | `OSTENDO_API_URL` | `https://plasgain.southeastit.com.au:8843` (the verified host and port are enforced in code). |
 | `OSTENDO_API_KEY` | Server-only Ostendo key. Never put it in browser code or source control. |
 | `DATA_DIR` | Directory for the persistent JSON snapshot and reviewed discounts; defaults to `./data`. Back it up. |
-| `DATABASE_URL` | Serverless Postgres connection string for Vercel. Required on Vercel; optional locally. |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | Entire Firebase service account JSON; sensitive, server-only. Enables Firestore storage on Vercel or locally. |
+| `FIREBASE_PROJECT_ID` | For local Google Application Default Credentials or emulator use. Not needed with service account JSON. |
+| `DATABASE_URL` | Optional alternative: serverless Postgres connection string. Firebase takes precedence when configured. |
 
 Run `npm test` for workbook parsing, dates, calculations and XLSX creation; run `npm run build` for a production build. Production serving uses `npm start` after the build.
 
@@ -44,8 +46,23 @@ The application has not been connected to live Ostendo in this workspace, so fie
 
 ## Hosting and data retention
 
-For local development without `DATABASE_URL`, the app uses `DATA_DIR` and runs as a single instance. On Vercel, it requires a serverless Postgres `DATABASE_URL`; it will not fall back to Vercel's ephemeral filesystem. The app creates its `pricing_state` table on first access and uses a revision check to reject overlapping updates instead of silently losing a discount or extraction step. A Neon Postgres store connected through Vercel Marketplace is suitable. Keep the database private and provision the same `DATABASE_URL` for each deployment environment that should share data. Configure `APP_PASSWORD` and the read-only Ostendo settings in Vercel Project Settings → Environment Variables, then redeploy. The repository alone contains no credentials or commercial data.
+For local development without Firebase or `DATABASE_URL`, the app uses `DATA_DIR` and runs as a single instance. On Vercel, configure Firebase Firestore (recommended below) or the existing Postgres alternative. Temporary Vercel files cannot retain pricing reviews.
+
+### Firebase setup on Vercel
+
+1. Sign in at https://console.firebase.google.com/ using your Google account and create or select a project. This does not change the app's password sign-in to Google sign-in.
+2. Open **Build → Firestore Database → Create database**. Choose **Standard edition**, the **(default)** database, a suitable region, and **Production mode**. Keep browser/client access denied; this app accesses Firestore only through its authenticated server routes.
+3. Open **Project settings → Service accounts → Firebase Admin SDK → Generate new private key**. Download the JSON securely. This key gives server access to your project; never commit it, upload it to the app, or send it in chat.
+4. In **Vercel → Project → Settings → Environment Variables**, add **FIREBASE_SERVICE_ACCOUNT_JSON** as a **Sensitive** variable for **Production**. Paste the **entire contents of the downloaded JSON file**, not the filename or the Firebase browser API key. Add it separately for Preview only if you want preview deployments to access this database.
+5. Keep `APP_PASSWORD` (at least 8 characters), `OSTENDO_API_URL`, and `OSTENDO_API_KEY` configured separately. No `DATABASE_URL` is needed with Firebase.
+6. Redeploy and wait for **Ready**. Sign in and upload your workbook. Firestore documents are created automatically on the first save; no schema setup is needed.
+
+Firestore stores compressed pricing state in chunks below its document size limit, using transactions and revision checks to reject overlapping updates. The current limit is **8 MB compressed per complete state**, including extraction drafts. Back up the database. Firebase reads/writes are subject to Google's quotas and billing. Local developers can use `FIREBASE_PROJECT_ID` with Application Default Credentials, or set `FIRESTORE_EMULATOR_HOST` and `FIREBASE_PROJECT_ID` for the Firestore emulator. Never set `FIRESTORE_EMULATOR_HOST` in production.
+
+Existing Postgres deployments can continue using `DATABASE_URL`; the `pricing_state` table is created automatically. Firebase takes precedence when configured. Existing Postgres or local data is not automatically migrated to Firebase; export/back up existing reviews before switching. Each backend is private server storage, not a browser-accessible public database.
 
 The XLSX export is for manual review and a separately authorised pricing process. It is not an Ostendo import template and the app cannot send prices to Ostendo.
 
 
+
+Firestore integration tests: start the Firebase Firestore emulator, then run `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npx tsx --test tests/firestore.test.ts`. They use the isolated `demo-plasgain-storage` project and delete their test state. Without an emulator, this suite is explicitly skipped.
