@@ -15,7 +15,7 @@ Environment variables:
 
 | Variable | Purpose |
 | --- | --- |
-| `APP_PASSWORD` | At least 16 characters; signs the HTTP-only application session. |
+| `APP_PASSWORD` | At least 8 characters; signs the HTTP-only application session. |
 | `OSTENDO_API_URL` | `https://plasgain.southeastit.com.au:8843` (the verified host and port are enforced in code). |
 | `OSTENDO_API_KEY` | Server-only Ostendo key. Never put it in browser code or source control. |
 | `DATA_DIR` | Directory for the persistent JSON snapshot and reviewed discounts; defaults to `./data`. Back it up. |
