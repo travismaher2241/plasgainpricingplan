@@ -8,6 +8,18 @@ export const num=(r:RecordRow,k:string)=>{const v=r[k];if(v===null||v===undefine
 export function isoDate(raw:unknown){const s=String(raw??'').trim();const m=s.match(/^(\d{4})-(\d\d)-(\d\d)/);if(m)return `${m[1]}-${m[2]}-${m[3]}`;const d=s.match(/^(\d\d?)\/(\d\d?)\/(\d{4})/);if(d)return `${d[3]}-${d[2].padStart(2,'0')}-${d[1].padStart(2,'0')}`;return ''}
 export function addDay(day:string){const d=new Date(day+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10)}
 export function windowDates(now=new Date()){const end=now.toLocaleDateString('en-CA',{timeZone:'Australia/Sydney'});const y=Number(end.slice(0,4)),m=Number(end.slice(5,7)),d=Number(end.slice(8,10));const startDate=new Date(Date.UTC(y,m-13,d));return {start:startDate.toISOString().slice(0,10),end}}
-export async function fetchDay(date:string){let rows:RecordRow[];try{rows=await query('SALESINVOICEHEADER',`INVOICEDATE='${date}'`)}catch{const [y,m,d]=date.split('-');rows=await query('SALESINVOICEHEADER',`INVOICEDATE='${Number(m)}/${Number(d)}/${y}'`)}const seen=new Set<string>();for(const r of rows){const invoice=str(r,'INVOICENUMBER');if(!invoice||isoDate(r.INVOICEDATE)!==date||seen.has(invoice))throw Error(`Invalid or duplicate invoice header in ${date} response`);seen.add(invoice)}return rows}
+export async function fetchDay(date:string){let rows:RecordRow[];try{rows=await query('SALESINVOICEHEADER',`INVOICEDATE='${date}'`)}catch{const [y,m,d]=date.split('-');rows=await query('SALESINVOICEHEADER',`INVOICEDATE='${Number(m)}/${Number(d)}/${y}'`)}const seen=new Set<string>();for(const [index,r] of rows.entries()){
+const invoice=str(r,'INVOICENUMBER');
+const location=`Ostendo SALESINVOICEHEADER for ${date}, row ${index+1} of ${rows.length}`;
+if(!invoice){
+// Report field names only, never customer data, invoice values or credentials.
+const fields=Object.keys(r).slice(0,12).map(k=>k.replace(/[^A-Za-z0-9_]/g,'').slice(0,60)).join(', ')||'(none)';
+throw Error(`${location}: missing INVOICENUMBER. Returned fields: ${fields}`);
+}
+const actualDate=isoDate(r.INVOICEDATE);
+if(!actualDate)throw Error(`${location}: INVOICEDATE is missing or has an unsupported format; expected YYYY-MM-DD or DD/MM/YYYY`);
+if(actualDate!==date)throw Error(`${location}: returned invoice date ${actualDate} does not match requested date ${date}; the server date filter needs verification`);
+if(seen.has(invoice))throw Error(`${location}: duplicate INVOICENUMBER in this day's response; extraction paused to avoid double counting`);
+seen.add(invoice)}return rows}
 export async function fetchLines(invoice:string){if(!/^[A-Za-z0-9][A-Za-z0-9_./-]{0,39}$/.test(invoice))throw Error('Unsafe invoice number');const rows=await query('SALESINVOICELINES',`INVOICENUMBER='${invoice}'`);for(const r of rows)if(str(r,'INVOICENUMBER')!==invoice)throw Error(`Unexpected invoice line for ${invoice}`);return rows}
 
