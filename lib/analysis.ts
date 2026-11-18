@@ -6,7 +6,7 @@ export function summarize(s:Snapshot,discounts:Record<string,Discount>){const ma
 export type PricingRow = ReturnType<typeof summarize>[number];
 export function isUcsCustomer(customer: Customer) {
   const name = customer.name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/ pty ltd$/, '');
-  return name === 'underground cable services';
+  return name === 'underground cable systems';
 }
 export type PriceBenchmark = {
   item: Product; base: number|null;

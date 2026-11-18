@@ -7,7 +7,7 @@ import type {Snapshot,Purchase} from '../lib/types';
 const purchase=(customerCode:string,price:number,invoice=customerCode,date='2026-10-01'):Purchase=>({customerCode,itemCode:'001',date,invoice,line:1,qty:1,net:price,price});
 function fixture():Snapshot{return {
  products:[{row:6,code:'001',ucsCode:'U1',description:'Pole',unit:'Each',ucsPrice:200},{row:7,code:'002',ucsCode:'U2',description:'Unsold',unit:'Each',ucsPrice:null}],
- customers:[{code:'C1',name:'A'},{code:'C2',name:'B'},{code:'C3',name:'C'},{code:'U',name:' Underground Cable Services Pty Ltd '},{code:'N',name:'No purchases'}],
+ customers:[{code:'C1',name:'A'},{code:'C2',name:'B'},{code:'C3',name:'C'},{code:'U',name:' Underground Cable Systems Pty Ltd '},{code:'N',name:'No purchases'}],
  purchases:[purchase('C1',281),purchase('C2',285),purchase('C3',285),purchase('C1',100,'OLD','2026-01-01'),purchase('U',200),purchase('U',200,'UOLD','2026-01-01')],
  exceptions:[],start:'2025-11-16',end:'2026-11-16',extractedAt:'2026-11-16',processedLines:6,complete:true,
 }}
@@ -19,8 +19,9 @@ test('most common price counts latest purchases once per customer, excludes UCS,
  assert.equal(comparePrice(rows.find(r=>r.customer.code==='U'&&r.item.code==='001')!,b).status,'UCS — excluded');
  assert.equal(comparePrice(rows.find(r=>r.customer.code==='N'&&r.item.code==='001')!,b).status,'No purchase in last 12 months');
  assert.deepEqual(benchmarks.get('002')!.modes,[]);assert.equal(benchmarks.get('002')!.base,null);
- assert.equal(isUcsCustomer({name:'UNDERGROUND   CABLE SERVICES',code:'U'}),true);
- assert.equal(isUcsCustomer({name:'Another Underground Cable Services Customer',code:'X'}),false);
+ assert.equal(isUcsCustomer({name:'UNDERGROUND   CABLE SYSTEMS',code:'U'}),true);
+ assert.equal(isUcsCustomer({name:'Another Underground Cable Systems Customer',code:'X'}),false);
+ assert.equal(isUcsCustomer({name:'Underground Cable Services',code:'OLD'}),false);
 });
 test('ties include every common price and each price uses cents',()=>{
  const s=fixture();s.purchases=[purchase('C1',281.00000001),purchase('C2',285),purchase('C3',283)];
